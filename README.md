@@ -4,14 +4,14 @@
 ![Alt text](./Screenshot-nft.png)
 
 # Desciption
-Welcome to Artistic Style Collection, a web application enable user to mint their two NFTs per address, also users can list NFTs into the marketplace to sell. Users can also see their minted NFTs in the My Collection tab.
+Welcome to the Artistic Style Collection! Our web application allows users to create two NFTs per address, a measure put in place to prevent excessive minting. Additionally, users have the option to list their NFTs in the marketplace for sale. You can also view your minted NFTs in the "My Collection" section.
 
-# Feature
-- Create new NFTs
-- Customize the metadata of the tokens (name, description, image, etc.)
-- View your own tokens
-- Buy and sell tokens on the marketplace, with CELO as the currency
-- Connect to a wallet (e.g., MetaMask) to interact with the Ethereum network
+# Key Features
+- Mint up to 2 new NFTs
+- Customize token metadata, including name, description, and image
+- Access and view your own tokens
+- Buy and sell tokens on the marketplace, using CELO as the currency
+- Connect your wallet (e.g., MetaMask) to interact with the CELO network
 
 # Tech Stack
 This web aplication uses the following tech stack:
