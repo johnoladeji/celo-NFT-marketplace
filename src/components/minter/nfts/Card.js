@@ -36,7 +36,7 @@ const NftCard = ({ nft, contract, rerestAsset }) => {
       await updateNft(contract, performActions, index, data);
       rerestAsset();
     } catch (error) {
-      console.log(error);
+      console.error("Error updating NFT:", error);
     }
   };
 

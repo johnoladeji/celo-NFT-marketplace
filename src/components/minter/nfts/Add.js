@@ -122,15 +122,20 @@ const AddNfts = ({ save, address }) => {
               type="file"
               className={"mb-3"}
               onChange={async (e) => {
-                const imageUrl = await uploadFileToWebStorage(e);
-                if (!imageUrl) {
-                  alert("failed to upload image");
-                  return;
+                try {
+                  const imageUrl = await uploadFileToWebStorage(e);
+                  if (!imageUrl) {
+                    throw new Error("Failed to upload image");
+                  }
+                  setIpfsImage(imageUrl);
+                } catch (error) {
+                  // Display the error message within the modal
+                  alert(`Error: ${error.message}`);
                 }
-                setIpfsImage(imageUrl);
               }}
               placeholder="Product name"
             />
+            
             <Form.Label>
               <h5>Metadata</h5>
             </Form.Label>

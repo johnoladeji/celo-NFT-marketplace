@@ -31,7 +31,7 @@ const NotificationError = ({ text }) => (
 );
 
 const Props = {
-  text: PropTypes.string,
+  text: PropTypes.string.isRequired,
 };
 
 const DefaultProps = {
