@@ -4,7 +4,7 @@ import { Card, Col, Badge, Stack, Row } from "react-bootstrap";
 import { truncateAddress } from "../../../utils";
 import Identicon from "../../ui/Identicon";
 import { x } from "../../../context";
-import { updateNft, removeNft, buyNft, } from "../../../utils/minter";
+import { updateNft, removeNft, buyNft } from "../../../utils/minter";
 import { useContractKit } from "@celo-tools/use-contractkit";
 import Web3 from "web3";
 
@@ -19,19 +19,17 @@ const NftCard = ({ nft, contract, rerestAsset }) => {
   if (price) {
     _price = price.toString();
   }
+  const convertPriceToWei = () => parseFloat(web3.utils.fromWei(_price, "ether"));
 
   const { performActions, address } = useContractKit();
 
-  const [show, setShow] = React.useState(false);
+  const [newPrice, setNewPrice] = React.useState(convertPriceToWei());
+  const [showUpdateForm, setShowUpdateForm] = React.useState(false);
 
-  const handleClose = () => setShow(false);
-  const handleShow = () => {
-    if (seller === address && content === "marketplace") {
-      setShow(true);
-    }
-  };
+  const isValidPrice = () => newPrice > 0;
 
   const handleUpdate = async (data) => {
+    data.e.preventDefault();
     try {
       await updateNft(contract, performActions, index, data);
       rerestAsset();
@@ -52,6 +50,7 @@ const NftCard = ({ nft, contract, rerestAsset }) => {
   const handleBuy = async () => {
     try {
       await buyNft(contract, performActions, index, seller, price);
+      rerestAsset();
     } catch (error) {
       console.log(error);
     }
@@ -103,13 +102,12 @@ const NftCard = ({ nft, contract, rerestAsset }) => {
             src={image}
             alt={description}
             style={{ objectFit: "cover" }}
-            onClick={handleShow}
           />
         </div>
 
         <Card.Body className="d-flex flex-column text-center ">
-          <Card.Title onClick={handleShow}>{name}</Card.Title>
-          <Card.Text className="flex-grow-1" onClick={handleShow}>
+          <Card.Title >{name}</Card.Title>
+          <Card.Text className="flex-grow-1">
             {description}
           </Card.Text>
 
@@ -120,9 +118,64 @@ const NftCard = ({ nft, contract, rerestAsset }) => {
                 onClick={handleBuy}
               >
                 {/* buy for {parseFloat(price * 10e-19)} CELO  */}
-                buy for {parseFloat(web3.utils.fromWei(_price, "ether"))} CELO
+                buy for {convertPriceToWei()} CELO
               </button>
             </div>
+          )}
+          {address === seller && price > 0 ? (
+            <div className="d-grid gap-2 mb-2">
+              <button
+                className="btn btn-lg btn-outline-danger fs-6 p-3"
+                onClick={handleRemove}
+              >
+                Remove Listing
+              </button>
+              {showUpdateForm ? (
+                <div>
+                  <form className="d-grid gap-2 mb-2">
+                    <div className="form-floating">
+                      <input
+                      value={newPrice}
+                      required
+                        id="newPrice"
+                        className="form-control"
+                        type="number"
+                        placeholder="Enter new price..."
+                        onChange={(e) => setNewPrice(e.target.value)}
+                      />
+                      <label htmlFor="newPrice">New Price</label>
+                    </div>
+
+                    <button
+                      className="btn btn-lg btn-outline-warning fs-6 p-3"
+                      type="button"
+                      onClick={(e) => handleUpdate({ newPrice: newPrice, e })}
+                      disabled={!isValidPrice()}
+                    >
+                      Update Listing
+                    </button>
+                    <button
+                      className="btn btn-lg btn-outline-dark fs-6 p-3"
+                      onClick={() => setShowUpdateForm(false)}
+                    >
+                      Close Update Form
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <button
+                  className="btn btn-lg btn-outline-dark fs-6 p-3"
+                  onClick={() => {
+                    setShowUpdateForm(true)
+                    setNewPrice(convertPriceToWei())
+                  }}
+                >
+                  Open Modal Form
+                </button>
+              )}
+            </div>
+          ) : (
+            ""
           )}
 
           <div>
