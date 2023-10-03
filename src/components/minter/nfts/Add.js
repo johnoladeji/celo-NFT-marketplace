@@ -26,10 +26,24 @@ const AddNfts = ({ save, address }) => {
   const [name, setName] = useState("");
   const [ipfsImage, setIpfsImage] = useState("");
   const [description, setDescription] = useState("");
+  const [imageError, setImageError] = useState("");
 
   //store attributes of an NFT
   const [attributes, setAttributes] = useState([]);
   const [show, setShow] = useState(false);
+
+  const validateImageFile = (file) => {
+    const allowedExtensions = ["jpg", "jpeg", "png", "gif"];
+    const fileName = file.name.toLowerCase();
+    const fileExtension = fileName.split(".").pop();
+    
+    if (!allowedExtensions.includes(fileExtension)) {
+      setImageError("Invalid file format. Please select an image file.");
+      return false;
+    }
+    
+    return true;
+  };
 
   // check if all form data has been filled
   const isFormFilled = () =>
@@ -122,15 +136,30 @@ const AddNfts = ({ save, address }) => {
               type="file"
               className={"mb-3"}
               onChange={async (e) => {
-                const imageUrl = await uploadFileToWebStorage(e);
-                if (!imageUrl) {
-                  alert("failed to upload image");
-                  return;
+                try {
+                  const file = e.target.files[0];
+                  if (!file) {
+                    return; // No file selected, do nothing
+                  }
+                
+                  if (!validateImageFile(file)) {
+                    return; // Image validation failed, do not set ipfsImage
+                  }
+                
+                  const imageUrl = await uploadFileToWebStorage(e);
+                  if (!imageUrl) {
+                    throw new Error("Failed to upload image");
+                  }
+                  setIpfsImage(imageUrl);
+                  setImageError(""); // Clear any previous image error
+                } catch (error) {
+                  // Display the error message within the modal
+                  setImageError(`Error: ${error.message}`);
                 }
-                setIpfsImage(imageUrl);
               }}
               placeholder="Product name"
             />
+
             <Form.Label>
               <h5>Metadata</h5>
             </Form.Label>
