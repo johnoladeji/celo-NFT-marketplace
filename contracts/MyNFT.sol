@@ -6,215 +6,197 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "hardhat/console.sol";
 
+/**
+ * @title MyNFT - Custom ERC721 Token Contract with NFT Marketplace
+ * @dev This contract allows users to mint, list, buy, update listings, and cancel listings of NFTs.
+ */
 contract MyNFT is ERC721Enumerable, ERC721URIStorage, Ownable {
-    // contract inherits from ERC721, ERC721Enumerable, ERC721URIStorage and Ownable contracts
     using Counters for Counters.Counter;
 
     struct ListedNFT {
-        // struct to store NFT details for sale1
-        address seller; // seller address
-        uint256 price; // sale price
-        string url; // NFT URI
+        address seller;
+        uint256 price;
+        string url;
     }
 
-    mapping(uint256 => ListedNFT) private _activeItem; // map NFT tokenId to ListedNFT struct, _activeItem store array of item listed into marketplace
+    mapping(uint256 => ListedNFT) private _activeItem;
     mapping(address => uint8) private mintedAddress;
-    uint256 public LIMIT_PER_ADDRESS = 2; // limit NFT minting to 2 per account
+    uint256 public LIMIT_PER_ADDRESS = 2;
 
-    Counters.Counter private _tokenIdCounter; // counter to generate unique token ids
+    Counters.Counter private _tokenIdCounter;
 
-    constructor() ERC721("MyNFT", "MNFT") {} // constructor to initialize the contract with name "MyNFT" and symbol "MNFT"
-    
-    event NftListingCancelled(uint256 indexed tokenId, address indexed caller); 
+    constructor() ERC721("MyNFT", "MNFT") {}
 
-    // event emitted when an NFT is listed for sale
-    event NftListed(
-        uint256 indexed tokenId,
-        address indexed buyer,
-        uint256 price
-    ); 
+    /**
+     * @dev Emitted when an NFT listing is canceled.
+     * @param tokenId The ID of the canceled NFT.
+     * @param caller The address of the caller canceling the listing.
+     */
+    event NftListingCancelled(uint256 indexed tokenId, address indexed caller);
 
-// event emitted when an NFT listing is updated
-    event NftListingUpdated(
-        uint256 indexed tokenId,
-        address indexed caller,
-        uint256 newPrice
-    ); 
-    
-    // event emitted when an NFT is bought
-    event NftBought(
-        uint256 indexed tokenId,
-        address indexed seller,
-        address indexed buyer,
-        uint256 price
-    ); 
+    /**
+     * @dev Emitted when an NFT is listed for sale.
+     * @param tokenId The ID of the listed NFT.
+     * @param buyer The address of the NFT owner.
+     * @param price The listing price of the NFT.
+     */
+    event NftListed(uint256 indexed tokenId, address indexed buyer, uint256 price);
 
+    /**
+     * @dev Emitted when an NFT listing is updated.
+     * @param tokenId The ID of the updated NFT listing.
+     * @param caller The address of the caller updating the listing.
+     * @param newPrice The new listing price.
+     */
+    event NftListingUpdated(uint256 indexed tokenId, address indexed caller, uint256 newPrice);
 
+    /**
+     * @dev Emitted when an NFT is bought.
+     * @param tokenId The ID of the bought NFT.
+     * @param seller The address of the NFT seller.
+     * @param buyer The address of the NFT buyer.
+     * @param price The purchase price of the NFT.
+     */
+    event NftBought(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 price);
 
-    // modifier to check if an NFT is not listed for sale
+    /**
+     * @dev Modifier to check if an NFT is not listed for sale.
+     * @param tokenId The ID of the NFT to check.
+     */
     modifier notListed(uint256 tokenId) {
         require(_activeItem[tokenId].price == 0, "Already listed");
         _;
     }
 
-    // modifier to check if an NFT is listed for sale
+    /**
+     * @dev Modifier to check if an NFT is listed for sale.
+     * @param tokenId The ID of the NFT to check.
+     */
     modifier isListed(uint256 tokenId) {
         require(_activeItem[tokenId].price > 0, "Not listed");
         _;
     }
-    // modifier to check if the caller is the owner of the NFT
+
+    /**
+     * @dev Modifier to check if the caller is the owner of an NFT.
+     * @param tokenId The ID of the NFT to check ownership.
+     * @param spender The address to check ownership against.
+     */
     modifier isOwner(uint256 tokenId, address spender) {
         require(spender == ownerOf(tokenId), "You are not the owner");
         _;
     }
 
     /**
-        * @notice function to mint a new NFT
-        * @param to the address to mint the NFT to
-        * @param uri the URL pointing to the metadata of the NFT
+     * @dev Mint a new NFT and assign it to the provided address.
+     * @param to The address to mint the NFT to.
+     * @param uri The URL pointing to the NFT metadata.
      */
     function mintNft(address to, string calldata uri) public {
-        require(mintedAddress[msg.sender] < LIMIT_PER_ADDRESS, "You have exceeded minting limit");
-        require(to != address(0), "Address zero is not a valid minter address");
-        require(bytes(uri).length > 0, "Empty uri");
-        mintedAddress[msg.sender] += 1;
+        require(mintedAddress[_msgSender()] < LIMIT_PER_ADDRESS, "Exceeded minting limit");
+        require(to != address(0), "Zero address is not a valid minter address");
+        require(bytes(uri).length > 0, "Empty URI");
+        mintedAddress[_msgSender()] += 1;
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
-        _safeMint(to, tokenId); // mint a new NFT and assign it to the given address
-        _setTokenURI(tokenId, uri); // set the URI of the NFT
+        _safeMint(to, tokenId);
+        _setTokenURI(tokenId, uri);
     }
-
-
-    function cancelListing(
-       uint256 tokenId
-    ) public isListed(tokenId) isOwner(tokenId, msg.sender) {
-        // in front-end, we can check because _activeItem[tokenId].seller is "0x000000000000000000000000000000000000000"
-       delete _activeItem[tokenId];
-
-        emit NftListingCancelled(tokenId, msg.sender);
-    }
-
-    function updateListing(
-        uint256 tokenId,
-        uint256 newPrice
-    ) public isListed(tokenId) isOwner(tokenId, msg.sender) {
-       require(newPrice > 0, "Invalid new price");
-        _activeItem[tokenId].price = newPrice;
-
-        emit NftListingUpdated(
-_activeItem[tokenId].price,
-            msg.sender,
-            newPrice
-        );
-    }
-
-
 
     /**
-        * @notice function to list NFT into the marketplace
-        * @dev The price set needs to be greater than zero to prevent issues with the notListed and isListed modifiers
-        * @param tokenId the tokenId of the NFT to be listed
-        * @param price the selling price of the NFT
+     * @dev Cancel the listing of an NFT, making it unlisted.
+     * @param tokenId The ID of the NFT to cancel the listing for.
      */
-    function listNft(
-        uint256 tokenId,
-        uint256 price
-    ) public notListed(tokenId) isOwner(tokenId, msg.sender) {
+    function cancelListing(uint256 tokenId) public isListed(tokenId) isOwner(tokenId, _msgSender()) {
+        delete _activeItem[tokenId];
+        emit NftListingCancelled(tokenId, _msgSender());
+    }
+
+    /**
+     * @dev Update the listing price of an NFT.
+     * @param tokenId The ID of the NFT to update the listing for.
+     * @param newPrice The new listing price.
+     */
+    function updateListing(uint256 tokenId, uint256 newPrice) public isListed(tokenId) isOwner(tokenId, _msgSender()) {
+        require(newPrice > 0, "Invalid new price");
+        _activeItem[tokenId].price = newPrice;
+        emit NftListingUpdated(tokenId, _msgSender(), newPrice);
+    }
+
+    /**
+     * @dev List an NFT for sale in the marketplace.
+     * @param tokenId The ID of the NFT to list for sale.
+     * @param price The selling price of the NFT.
+     */
+    function listNft(uint256 tokenId, uint256 price) public notListed(tokenId) isOwner(tokenId, _msgSender()) {
         require(price > 0, "Invalid price");
         string memory _url = tokenURI(tokenId);
-        _activeItem[tokenId] = ListedNFT(msg.sender, price, _url); // push item into the array that store listedItem
-
-        emit NftListed(tokenId, msg.sender, price);
+        _activeItem[tokenId] = ListedNFT(_msgSender(), price, _url);
+        emit NftListed(tokenId, _msgSender(), price);
     }
 
-// Function to return mintedAddress[msg.sender]
+    /**
+     * @dev Get the minter limit for the caller.
+     * @return The current minter limit for the caller's address.
+     */
     function getMinterLimit() public view returns (uint8) {
-        console.log(mintedAddress[msg.sender]);        
-        return mintedAddress[msg.sender];
+        return mintedAddress[_msgSender()];
     }
-    
-    
 
-    /// function to transfer NFT ownership when bought 
+    /**
+     * @dev Buy an NFT listed in the marketplace.
+     * @param tokenId The ID of the NFT to purchase.
+     */
     function buyNft(uint256 tokenId) public payable isListed(tokenId) {
         ListedNFT storage currentNft = _activeItem[tokenId];
-        require(msg.sender != currentNft.seller, "Can Not buy your own NFT");
-
-        require(msg.value == currentNft.price, "Not enough money!");
+        require(_msgSender() != currentNft.seller, "Cannot buy your own NFT");
+        require(msg.value == currentNft.price, "Incorrect payment amount");
         address seller = currentNft.seller;
-        delete _activeItem[tokenId]; 
-        _transfer(seller, msg.sender, tokenId);
+        delete _activeItem[tokenId];
+        _transfer(seller, _msgSender(), tokenId);
 
-        // Send the correct amount of wei to the seller
         (bool success, ) = payable(seller).call{value: msg.value}("");
         require(success, "Payment failed");
-
-        emit NftBought(tokenId, seller, msg.sender, msg.value);
+        emit NftBought(tokenId, seller, _msgSender(), msg.value);
     }
 
-    // The following functions are overrides required by Solidity.
-
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId,
-        uint256 batchSize
-    ) internal override(ERC721, ERC721Enumerable) {
-        super._beforeTokenTransfer(from, to, tokenId, batchSize);
-    }
-
-    function _burn(
-        uint256 tokenId
-    ) internal override(ERC721, ERC721URIStorage) {
-        super._burn(tokenId);
-    }
-
-    /// function go get URI of created NFT
-    function tokenURI(
-        uint256 tokenId
-    ) public view override(ERC721, ERC721URIStorage) returns (string memory) {
+    /**
+     * @dev Override of the tokenURI function to support ERC721URIStorage.
+     */
+    function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory) {
         return super.tokenURI(tokenId);
     }
 
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view override(ERC721URIStorage, ERC721Enumerable) returns (bool) {
+    /**
+     * @dev Override of the supportsInterface function to support ERC721 and ERC721Enumerable interfaces.
+     */
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721Enumerable, ERC721URIStorage) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
-    /// function to get the array that store item that listed
-    function getActiveItem(
-        uint256 tokenId
-    ) public view returns (ListedNFT memory) {
+    /**
+     * @dev Get the details of an active listed NFT.
+     * @param tokenId The ID of the NFT to query.
+     * @return The details of the active listed NFT.
+     */
+    function getActiveItem(uint256 tokenId) public view returns (ListedNFT memory) {
         return _activeItem[tokenId];
     }
 
-        /**
-     * @dev See {IERC721-transferFrom}.
-     * Changes is made to transferFrom to prevent transfers of a listed NFT
+    /**
+     * @dev Override of the transferFrom function to prevent transfers of listed NFTs.
      */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public override(IERC721, ERC721) {
+    function transferFrom(address from, address to, uint256 tokenId) public override(ERC721) {
         require(_activeItem[tokenId].price == 0, "You can't transfer a listed NFT");
         super.transferFrom(from, to, tokenId);
     }
 
     /**
-     * @dev See {IERC721-safeTransferFrom}.
-     * Changes is made to safeTransferFrom to prevent transfers of a listed NFT
+     * @dev Override of the safeTransferFrom function to prevent transfers of listed NFTs.
      */
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes memory data
-    ) public virtual override(IERC721, ERC721) {
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override(ERC721) {
         require(_activeItem[tokenId].price == 0, "You can't transfer a listed NFT");
-        _safeTransfer(from, to, tokenId, data);
+        super.safeTransferFrom(from, to, tokenId, data);
     }
 }
